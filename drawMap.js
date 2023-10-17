@@ -54,7 +54,7 @@ export function drawMap(geoJsonData, ctx, width, height) {
           const { projectedPoint } = geoCoordinate;
           const [x, y] = projectedPoint;
           const screenX = (x - minX) * scaleX;
-          const screenY = (y - minY) * scaleY;
+          const screenY = height - (y - minY) * scaleY;
 
           ctx.lineTo(screenX, screenY);
         }
