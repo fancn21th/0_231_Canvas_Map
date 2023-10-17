@@ -1,46 +1,86 @@
 import proj4 from "proj4";
 
-// 定义源坐标系的字符串
-const sourceCrs = "+proj=longlat +datum=WGS84 +no_defs"; // WGS 84坐标系
+const sourceCrs = "EPSG:4326";
 
-// 定义目标坐标系的字符串，适用于 1920x1080 像素的 Canvas
-const targetCrs = `+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=960.0 +y_0=540.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs`;
+/**
+EPSG:3857，也称为Web Mercator投影，使用米（meters）作为单位。这意味着在EPSG:3857坐标系统中，水平和垂直方向上的坐标值表示地球表面上的位置时，以米为单位。这与纬度（度）和经度（度）不同，它们在地理坐标系中以角度为单位表示。 EPSG:3857的平面坐标使其在在线地图和Web地图应用程序中更容易进行测量和渲染，因此它在Web地图领域中非常流行。
+*/
+
+const targetCrs = `EPSG:3857`;
 
 // 创建坐标转换函数
 const transformFunction = proj4(sourceCrs, targetCrs);
 
-export function drawMap(geoJsonData, ctx, canvasHeight) {
+export function drawMap(geoJsonData, ctx, width, height) {
   const features = geoJsonData.features;
 
-  for (const feature of features) {
+  const temp = features.map((feature) => {
     const geometry = feature.geometry;
-    const type = geometry.type;
     const coordinates = geometry.coordinates;
+    const polygons = coordinates.map((polygon) => {
+      return polygon.map((ring) => {
+        return ring.map((coord) => {
+          return {
+            projectedPoint: transformFunction.forward(coord),
+            coord,
+          };
+        });
+      });
+    });
+    return polygons;
+  });
 
+  const flattened = temp.flat(3);
+
+  const boundingCoords = calcBoundingCoords(flattened);
+  const minX = boundingCoords[0][0];
+  const maxX = boundingCoords[1][0];
+  const minY = boundingCoords[1][1];
+  const maxY = boundingCoords[0][1];
+
+  const scaleX = width / (maxX - minX);
+  const scaleY = height / (maxY - minY);
+
+  console.log("scaleX", scaleX);
+  console.log("scaleY", scaleY);
+
+  for (const feature of temp) {
     ctx.beginPath();
+    for (const polygon of feature) {
+      // 绘制一个多边形
+      for (const ring of polygon) {
+        // 绘制一个环
+        for (const geoCoordinate of ring) {
+          const { projectedPoint } = geoCoordinate;
+          const [x, y] = projectedPoint;
+          const screenX = (x - minX) * scaleX;
+          const screenY = (y - minY) * scaleY;
 
-    if (type === "Polygon" || type === "MultiPolygon") {
-      for (const polygon of coordinates) {
-        for (const ring of polygon) {
-          for (const geoCoordinate of ring) {
-            const projectedPoint = transformFunction.forward(geoCoordinate);
-
-            // 将 projectedPoint 映射到 Canvas 的范围内
-            const scaleOut = 10000;
-            const screenX = projectedPoint[0] / scaleOut;
-            const screenY = canvasHeight - projectedPoint[1] / scaleOut;
-            console.log(`屏幕坐标 X: ${screenX}, Y: ${screenY}`);
-            ctx.lineTo(screenX, screenY);
-          }
-          ctx.closePath();
+          ctx.lineTo(screenX, screenY);
         }
-        ctx.fillStyle = "green";
-        ctx.fill();
-        ctx.strokeStyle = "blue";
-        ctx.stroke();
+        ctx.closePath();
       }
+      // ctx.fillStyle = "green";
+      // ctx.fill();
+      ctx.strokeStyle = "blue";
+      ctx.stroke();
     }
-
     ctx.closePath();
   }
 }
+
+export const calcBoundingCoords = (coordinates) => {
+  const boundingCoords = [
+    [Infinity, -Infinity],
+    [-Infinity, Infinity],
+  ];
+
+  coordinates.forEach(function ({ projectedPoint: coord }) {
+    boundingCoords[0][0] = Math.min(boundingCoords[0][0], coord[0]);
+    boundingCoords[0][1] = Math.max(boundingCoords[0][1], coord[1]);
+    boundingCoords[1][0] = Math.max(boundingCoords[1][0], coord[0]);
+    boundingCoords[1][1] = Math.min(boundingCoords[1][1], coord[1]);
+  });
+
+  return boundingCoords;
+};
