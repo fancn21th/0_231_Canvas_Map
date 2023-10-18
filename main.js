@@ -37,13 +37,12 @@ const properties = {
   ...temp[0].properties,
 };
 
-geoJsonData.features = [
-  ...temp2,
-  {
-    ...merge(temp),
-    properties,
-  },
-];
+const mergedArea = {
+  ...merge(temp),
+  properties,
+};
+
+geoJsonData.features = [...temp, mergedArea];
 
 // 调用函数绘制地图
 drawMap(geoJsonData, ctx, width, height);
