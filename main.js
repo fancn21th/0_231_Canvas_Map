@@ -1,4 +1,5 @@
-// 导入proj4库
+// turf
+import * as turf from "@turf/turf";
 
 // 获取Canvas上下文
 const canvas = document.createElement("canvas");
@@ -13,7 +14,36 @@ const height = (canvas.height = 600);
 import { 湖北省 } from "./assets";
 import { drawMap } from "./drawMap";
 
-const geoJsonData = 湖北省;
+let geoJsonData = 湖北省;
+
+const merge = (features) => {
+  return features.reduce((prev, curr) => {
+    if (!prev) return curr;
+    const union = turf.union(prev, curr);
+    return union;
+  }, null);
+};
+
+const temp = geoJsonData.features.filter((feature) =>
+  ["荆州市", "潜江市", "天门市", "仙桃市"].includes(feature.properties.name)
+);
+
+const temp2 = geoJsonData.features.filter(
+  (feature) =>
+    !["荆州市", "潜江市", "天门市", "仙桃市"].includes(feature.properties.name)
+);
+
+const properties = {
+  ...temp[0].properties,
+};
+
+geoJsonData.features = [
+  ...temp2,
+  {
+    ...merge(temp),
+    properties,
+  },
+];
 
 // 调用函数绘制地图
 drawMap(geoJsonData, ctx, width, height);
