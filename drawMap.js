@@ -11,6 +11,10 @@ const targetCrs = `EPSG:3857`;
 // 创建坐标转换函数
 const transformFunction = proj4(sourceCrs, targetCrs);
 
+const convertCoordinate = (coord) => {
+  return transformFunction.forward(coord);
+};
+
 export function drawMap(geoJsonData, ctx, width, height) {
   const features = geoJsonData.features;
 
@@ -21,7 +25,7 @@ export function drawMap(geoJsonData, ctx, width, height) {
       return polygon.map((ring) => {
         return ring.map((coord) => {
           return {
-            projectedPoint: transformFunction.forward(coord),
+            projectedPoint: convertCoordinate(coord),
             coord,
           };
         });
